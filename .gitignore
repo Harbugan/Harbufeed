@@ -1,0 +1,6 @@
+# OAuth credentials and other server-private data
+config.php
+.env
+.env.*
+harbufeed-private/
+.DS_Store
