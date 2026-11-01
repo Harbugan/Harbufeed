@@ -9,6 +9,10 @@
   };
   let csrf = "", connected = false, subs = [], videos = [], channel = null;
   const excludedKey = "harbufeed-excluded-channels";
+  const cacheKey = "harbufeed-youtube-cache-v2";
+  const ttl = 15 * 60 * 1000;
+  const readCache = () => { try { return JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch { return null; } };
+  const writeCache = () => { try { localStorage.setItem(cacheKey, JSON.stringify({at:Date.now(),subs,videos,channel})); } catch {} };
   const exclusions = () => { try { return JSON.parse(localStorage.getItem(excludedKey)||"[]"); } catch { return []; } };
   const safe = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const bar = document.createElement("section");
@@ -28,6 +32,7 @@
     try {
       const r=await fetch(base+"auth/logout.php",{method:"POST",credentials:"same-origin",headers:{"X-CSRF-Token":csrf}});
       if(!r.ok)throw Error("Disconnect failed");
+      localStorage.removeItem(cacheKey);
       location.reload();
     } catch(e) { show(e.message); }
   }
@@ -42,6 +47,7 @@
       let list=exclusions();const id=input.dataset.hfChannel;
       list=input.checked?list.filter(x=>x!==id):[...new Set([...list,id])];
       localStorage.setItem(excludedKey,JSON.stringify(list));
+      localStorage.removeItem(cacheKey);
       await loadVideos();
     }));
   }
@@ -50,22 +56,30 @@
     const values=await Promise.allSettled(selected.map(c=>get("youtube/videos.php?channelId="+encodeURIComponent(c.id))));
     videos=values.flatMap(x=>x.status==="fulfilled"?x.value.items:[]);
     window.harbufeedSetLive(videos,subs);
+    writeCache();
     show(values.some(x=>x.status==="rejected")?"Some channels could not be loaded.":"");
   }
   async function init() {
     try {
       const status=await get("auth/status.php");csrf=status.csrf;connected=status.connected;
       if(!connected){show();return;}
-      show("Loading YouTube subscriptions...");
+      const cached = readCache();
+      if (cached && Array.isArray(cached.subs) && Array.isArray(cached.videos)) {
+        subs=cached.subs; videos=cached.videos; channel=cached.channel;
+        window.harbufeedSetLive(videos,subs);
+        if (Date.now()-cached.at < ttl) { show("Showing cached feed"); return; }
+        show("Showing cached feed · updating");
+      } else show("Loading YouTube subscriptions...");
       const profile=await get("youtube/profile.php");channel=profile.channel;
+      subs=[];
       let next="";let pageCount=0;
       do {
         const page=await get("youtube/subscriptions.php"+(next?"?pageToken="+encodeURIComponent(next):""));
         subs.push(...page.items);next=page.nextPageToken||"";pageCount++;
       }while(next && pageCount<30);
       await loadVideos();
-    } catch(e) {show("Unable to load YouTube: "+e.message);}
+    } catch(e) {show("Unable to refresh YouTube: "+e.message); if(videos.length) window.harbufeedSetLive(videos,subs);}
   }
-  window.harbufeedToggleChannel=async(id,checked)=>{let list=exclusions();list=checked?list.filter(x=>x!==id):[...new Set([...list,id])];localStorage.setItem(excludedKey,JSON.stringify(list));await loadVideos();};
+  window.harbufeedToggleChannel=async(id,checked)=>{let list=exclusions();list=checked?list.filter(x=>x!==id):[...new Set([...list,id])];localStorage.setItem(excludedKey,JSON.stringify(list));localStorage.removeItem(cacheKey);await loadVideos();};
   show();init();
 })();
