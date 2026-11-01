@@ -27,6 +27,9 @@ jobs:
           set -euo pipefail
           test -n "$FTP_USER"
           test -n "$FTP_PASSWORD"
-          for file in index.html app.js styles.css; do
+          for file in index.html app.js styles.css youtube.js; do
             curl --fail --show-error --silent --retry 2 --ssl-reqd --ftp-pasv --user "$FTP_USER:$FTP_PASSWORD" --upload-file "$file" "ftp://cp17.nordicway.dk//public_html/Projects/Harbufeed/$file"
+          done
+          for file in api/bootstrap.php api/.htaccess api/auth/login.php api/auth/callback.php api/auth/status.php api/auth/logout.php api/youtube/profile.php api/youtube/subscriptions.php api/youtube/videos.php; do
+            curl --fail --show-error --silent --retry 2 --ssl-reqd --ftp-pasv --ftp-create-dirs --user "$FTP_USER:$FTP_PASSWORD" --upload-file "$file" "ftp://cp17.nordicway.dk//public_html/Projects/Harbufeed/$file"
           done
