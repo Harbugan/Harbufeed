@@ -66,5 +66,6 @@
       await loadVideos();
     } catch(e) {show("Unable to load YouTube: "+e.message);}
   }
+  window.harbufeedToggleChannel=async(id,checked)=>{let list=exclusions();list=checked?list.filter(x=>x!==id):[...new Set([...list,id])];localStorage.setItem(excludedKey,JSON.stringify(list));await loadVideos();};
   show();init();
 })();
