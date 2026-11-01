@@ -1,0 +1,32 @@
+name: Deploy Harbufeed
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harbufeed-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Upload website
+        env:
+          FTP_USER: ${{ secrets.NORDICWAY_FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.NORDICWAY_FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$FTP_USER"
+          test -n "$FTP_PASSWORD"
+          for file in index.html app.js styles.css; do
+            curl --fail --show-error --silent --retry 2 --ssl-reqd --ftp-pasv --user "$FTP_USER:$FTP_PASSWORD" --upload-file "$file" "ftp://cp17.nordicway.dk//public_html/Projects/Harbufeed/$file"
+          done
