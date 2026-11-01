@@ -1,9 +1,16 @@
 <?php
 declare(strict_types=1);
-const HF_CONFIG = '/home/lilleoer/harbufeed-private/config.php';
+const HF_PRIVATE_DIR = '/home/lilleoer/harbufeed-private/';
+function hf_app_path(): string {
+    $path = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    return str_starts_with($path, '/Projects/Harbufeed-test/') ? '/Projects/Harbufeed-test/' : '/Projects/Harbufeed/';
+}
+function hf_config_path(): string {
+    return HF_PRIVATE_DIR . (hf_app_path() === '/Projects/Harbufeed-test/' ? 'config-staging.php' : 'config.php');
+}
 function hf_config(): array {
-    if (!is_file(HF_CONFIG)) { throw new RuntimeException('Server configuration missing'); }
-    $cfg = require HF_CONFIG;
+    if (!is_file(hf_config_path())) { throw new RuntimeException('Server configuration missing'); }
+    $cfg = require hf_config_path();
     if (!is_array($cfg) || empty($cfg['client_id']) || empty($cfg['client_secret']) || empty($cfg['redirect_uri'])) {
         throw new RuntimeException('Server configuration incomplete');
     }
@@ -18,7 +25,7 @@ function hf_session(): void {
     ini_set('session.use_only_cookies', '1');
     session_name('HARBUFEED_SESSION');
     session_set_cookie_params([
-        'lifetime' => 0, 'path' => '/Projects/Harbufeed/', 'secure' => true,
+        'lifetime' => 0, 'path' => hf_app_path(), 'secure' => true,
         'httponly' => true, 'samesite' => 'Lax'
     ]);
     session_start();
